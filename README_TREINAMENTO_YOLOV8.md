@@ -9,7 +9,7 @@ O processo tem **4 grandes etapas**, e só a terceira acontece no Colab:
 | **A. Preparar o PC** | seu PC | instalar Anaconda, criar ambiente e instalar o Label Studio |
 | **B. Coletar e rotular imagens** | seu PC | tirar fotos, criar o projeto no Label Studio, marcar objetos, exportar |
 | **C. Treinar** | Google Colab | enviar o dataset, dividir, treinar, testar, baixar o modelo |
-| **D. Usar o modelo** | seu PC | rodar o modelo treinado na webcam, vídeo ou imagens |
+| **D. Usar o modelo** | seu PC | rodar o modelo treinado na webcam, em fotos ou vídeos |
 
 > 📓 A **Etapa C** está pronta em [`Train_YOLOv8_STC.ipynb`](Train_YOLOv8_STC.ipynb). Suba-o no [Google Colab](https://colab.research.google.com) (Arquivo → Fazer upload de notebook).
 
@@ -20,7 +20,7 @@ O processo tem **4 grandes etapas**, e só a terceira acontece no Colab:
 - [C. Treinar no Google Colab](#c-treinar-no-google-colab)
 - [D. Usar o modelo no PC](#d-usar-o-modelo-no-pc)
 - [Erros comuns](#erros-comuns)
-- [Arquivos extras do projeto](#arquivos-extras-do-projeto)
+- [Arquivos do projeto](#arquivos-do-projeto)
 
 ---
 
@@ -289,51 +289,72 @@ files.download('/content/my_model.zip')  # pode demorar; também dá para baixar
 
 # D. Usar o modelo no PC
 
-Volte ao **seu PC**, no terminal com o ambiente `YOLO_env` (criado em A.2).
+Este repositório já traz um modelo treinado em [`my_model/my_model.pt`](my_model/my_model.pt) (YOLOv8l, 60 épocas, classes `carro` e `pessoa`) e o script [`testar_camera.py`](testar_camera.py) para testá-lo na webcam. Os resultados do treino (curvas, matriz de confusão, `results.png`) estão em [`my_model/train/`](my_model/train/).
 
-### D.1 Extrair o modelo
-
-Descompacte o `my_model.zip` baixado e entre na pasta:
+### D.1 Clonar o repositório
 
 ```bash
-cd caminho/para/my_model
+git clone https://github.com/caiolaurindo/STC-Sistema-de-Controle-de-Trafego.git
+cd STC-Sistema-de-Controle-de-Trafego
 ```
 
-### D.2 Instalar o Ultralytics
+Para usar um modelo que **você** treinou, descompacte o `my_model.zip` baixado em C.8 e substitua o arquivo `my_model/my_model.pt`.
+
+### D.2 Instalar as dependências
+
+No terminal com o ambiente `YOLO_env` ativo (criado em A.2):
 
 ```bash
-pip install ultralytics
+pip install -r requirements.txt
 ```
 
-Instala a biblioteca que carrega e roda modelos YOLO (traz OpenCV, NumPy e PyTorch).
+Instala o Ultralytics, que já traz PyTorch, OpenCV e NumPy.
 
-*(Opcional, só com GPU NVIDIA)* instale o PyTorch com suporte a CUDA para acelerar:
+*(Opcional, só com GPU NVIDIA)* instale **antes** o PyTorch com suporte a CUDA, que deixa a detecção muito mais rápida:
 
 ```bash
 pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 ```
 
-### D.3 Baixar o script de detecção
+### D.3 Testar com a webcam
 
 ```bash
-curl -o yolo_detect.py https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/yolo_detect.py
+python testar_camera.py
 ```
 
-Baixa o script do autor, que carrega o modelo, roda a inferência e desenha as caixas.
+Abre uma janela com a câmera ao vivo, as caixas das detecções e um painel com o FPS do vídeo, o FPS do modelo e a contagem por classe. A primeira detecção demora alguns segundos (aquecimento do modelo).
 
-### D.4 Executar a detecção
+| Tecla | Ação |
+|-------|------|
+| `q` ou `ESC` | sair |
+| `s` | salvar um print em `capturas/` |
 
-Webcam USB a 1280x720:
+Opções úteis:
+
+| Opção | Padrão | Para que serve |
+|-------|--------|----------------|
+| `--camera` | `0` | índice da câmera; tente `1` se a webcam não abrir |
+| `--conf` | `0.25` | confiança mínima; suba (ex.: `0.5`) se aparecerem detecções falsas |
+| `--imgsz` | `416` | tamanho da imagem na inferência; menor = mais rápido, menos preciso |
+| `--modelo` | `my_model/my_model.pt` | outro arquivo de pesos |
+
+Exemplo: `python testar_camera.py --camera 1 --conf 0.4`
+
+> ⚡ **Desempenho:** a detecção roda numa thread separada, então o vídeo fica fluido mesmo que as caixas atualizem devagar. Sem GPU NVIDIA, o YOLOv8l faz só ~3 a 5 detecções por segundo num processador comum. Para tempo real na CPU, treine com `yolov8s.pt` ou `yolov8n.pt` (C.6), que são de 3 a 6 vezes mais rápidos. Exportar para ONNX/OpenVINO quase não ajudou nos nossos testes.
+
+### D.4 Testar em fotos ou vídeos
+
+Sem câmera, rode o modelo direto em arquivos:
 
 ```bash
-python yolo_detect.py --model my_model.pt --source usb0 --resolution 1280x720
+yolo detect predict model=my_model/my_model.pt source=caminho/da/pasta conf=0.25 save=True
 ```
 
-Abre uma janela com a imagem da câmera e as caixas desenhadas. O `--source` também aceita vídeo, imagem ou pasta de imagens (ex.: `--source video.mp4`). Veja todas as opções com `python yolo_detect.py --help`.
+As imagens com as caixas ficam em `runs/detect/predict/`. Use fotos que **não** estavam no treino, senão o resultado parece melhor do que é.
 
 ### D.5 Raspberry Pi e outros dispositivos
 
-O modelo pode ser exportado para ONNX ou TFLite (`yolo export model=my_model.pt format=onnx`), útil para dispositivos de borda. Veja a seção 8.1 do notebook.
+O modelo pode ser exportado para ONNX ou TFLite (`yolo export model=my_model/my_model.pt format=onnx`), útil para dispositivos de borda. Veja a seção 8.1 do notebook.
 
 ---
 
@@ -344,14 +365,18 @@ O modelo pode ser exportado para ONNX ou TFLite (`yolo export model=my_model.pt 
 - **`nvidia-smi` falha no Colab:** a GPU não está ativada (C.1).
 - **Arquivos sumiram no Colab:** a sessão expirou; use o Drive e baixe o modelo ao final.
 - **`label-studio` ou `yolo` não encontrados no PC:** o ambiente não está ativo; rode `conda activate YOLO_env`.
+- **Webcam não abre:** tente outro índice com `python testar_camera.py --camera 1` e feche outros programas que usam a câmera.
+- **Poucas ou nenhuma detecção:** baixe o `--conf` (ex.: `0.15`) e confira se os objetos parecem com os do treino.
 - Persistindo, pesquise o erro ou abra uma [Issue no GitHub](https://github.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/issues).
 
-# Arquivos extras do projeto
+# Arquivos do projeto
 
-- [`classes.txt`](classes.txt): exemplo de labelmap do STC (carro, moto, onibus, caminhao).
-- [`stc_detect.py`](stc_detect.py): roda o modelo em webcam ou vídeo e mostra a contagem por classe:
-  ```bash
-  python stc_detect.py --model my_model.pt --source 0
-  ```
+| Arquivo | O que é |
+|---------|---------|
+| [`Train_YOLOv8_STC.ipynb`](Train_YOLOv8_STC.ipynb) | notebook do Colab com a Etapa C |
+| [`my_model/my_model.pt`](my_model/my_model.pt) | modelo treinado (classes `carro` e `pessoa`) |
+| [`my_model/train/`](my_model/train/) | métricas e gráficos do treino |
+| [`testar_camera.py`](testar_camera.py) | testa o modelo na webcam (D.3) |
+| [`requirements.txt`](requirements.txt) | dependências para rodar o modelo |
 
 Próximo passo: integrar o modelo ao STC (contagem de veículos, registro ao longo do tempo, captura de imagens em eventos).

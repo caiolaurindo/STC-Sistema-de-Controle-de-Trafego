@@ -7,8 +7,8 @@ de processar um frame. Assim a imagem não trava mesmo com um modelo pesado.
 
 Uso:
     python testar_camera.py
-    python testar_camera.py --modelo my_model/my_model.onnx
     python testar_camera.py --camera 1 --conf 0.4 --imgsz 320
+    python testar_camera.py --modelo my_model/train/weights/best.pt
 
 Teclas:
     q / ESC  -> sair
@@ -36,11 +36,12 @@ def parse_args():
                         help="Arquivo .pt ou .onnx (padrão: my_model/my_model.pt)")
     parser.add_argument("--camera", type=int, default=0,
                         help="Índice da câmera (0 = webcam padrão)")
-    parser.add_argument("--conf", type=float, default=0.5,
-                        help="Confiança mínima para mostrar uma detecção (0 a 1)")
+    parser.add_argument("--conf", type=float, default=0.25,
+                        help="Confiança mínima para mostrar uma detecção (0 a 1); "
+                             "suba se aparecerem detecções falsas")
     parser.add_argument("--imgsz", type=int, default=416,
                         help="Tamanho da imagem na inferência; menor = mais rápido "
-                             "(o .onnx exportado aceita apenas 416)")
+                             "(um .onnx exportado só aceita o imgsz da exportação)")
     parser.add_argument("--largura", type=int, default=640, help="Largura da captura")
     parser.add_argument("--altura", type=int, default=480, help="Altura da captura")
     return parser.parse_args()

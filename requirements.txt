@@ -1,0 +1,4 @@
+# Dependências para rodar o modelo treinado (testar_camera.py).
+# O ultralytics já instala PyTorch, OpenCV e NumPy.
+# Com GPU NVIDIA, instale antes o PyTorch com CUDA (veja a seção D.2 do README).
+ultralytics>=8.4,<9
