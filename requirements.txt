@@ -1,4 +1,7 @@
-# Dependências para rodar o modelo treinado (testar_camera.py).
+# Dependências para o STC (Sistema de Controle de Tráfego Adaptativo).
 # O ultralytics já instala PyTorch, OpenCV e NumPy.
 # Com GPU NVIDIA, instale antes o PyTorch com CUDA (veja a seção D.2 do README).
 ultralytics>=8.4,<9
+
+# Comunicação serial UART com microcontrolador (Arduino / ESP32)
+pyserial>=3.5
