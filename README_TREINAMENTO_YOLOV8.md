@@ -6,8 +6,8 @@ O processo tem **4 grandes etapas**, e só a terceira acontece no Colab:
 
 | Etapa | Onde | O que se faz |
 |-------|------|--------------|
-| **A. Preparar o PC** | seu PC | instalar Anaconda, criar ambiente e instalar o Label Studio |
-| **B. Coletar e rotular imagens** | seu PC | tirar fotos, criar o projeto no Label Studio, marcar objetos, exportar |
+| **A. Preparar o PC** | seu PC | instalar Anaconda, criar ambiente e (opcional) instalar o Label Studio |
+| **B. Coletar e rotular imagens** | seu PC / navegador | tirar fotos, marcar os objetos no **Roboflow** (usado neste projeto) ou no Label Studio, exportar |
 | **C. Treinar** | Google Colab | enviar o dataset, dividir, treinar, testar, baixar o modelo |
 | **D. Usar o modelo** | seu PC | rodar o modelo treinado na webcam, em fotos ou vídeos |
 
@@ -68,6 +68,8 @@ O modelo aprende com exemplos, então a qualidade das fotos define a qualidade d
 - Junte tudo em uma pasta no PC.
 
 Alternativa: datasets prontos no [Roboflow Universe](https://universe.roboflow.com) ou [Kaggle](https://www.kaggle.com/datasets), mantendo a mesma estrutura de pastas descrita em [B.7](#b7-exportar-no-formato-yolo).
+
+> 🏷️ **Rotulagem usada neste projeto: Roboflow.** O modelo atual foi treinado com **438 imagens** (frames de vídeo da maquete) rotuladas no [Roboflow](https://roboflow.com) (classes `boneco_de_brinquedo` e `carro_de_brinquedo`). Começamos com o Label Studio, mas no Roboflow a marcação foi mais rápida. Veja [B.8](#b8-alternativa-usada-no-projeto-roboflow). Os passos B.2 a B.7 mostram o Label Studio, que roda no PC e não depende de conta online.
 
 ## B.2 Iniciar o Label Studio
 
@@ -141,6 +143,38 @@ data.zip
 ```
 
 Um exemplo de `classes.txt` está em [`classes.txt`](classes.txt). Se o dataset vier de outra fonte, organize os arquivos do mesmo jeito.
+
+## B.8 Alternativa usada no projeto: Roboflow
+
+O [Roboflow](https://roboflow.com) faz a rotulagem no navegador e foi a ferramenta usada nas **438 imagens** deste projeto, por ser mais rápido que o Label Studio.
+
+1. Crie uma conta gratuita e um projeto do tipo **Object Detection**.
+2. Envie as imagens em **Upload**.
+3. Em **Annotate**, desenhe as caixas e dê um nome a cada classe (sem acentos nem espaços, ex.: `carro_de_brinquedo`). As mesmas dicas de B.6 valem aqui.
+4. Gere uma versão do dataset (**Generate**) e exporte em **Export Dataset → formato YOLOv8 → download zip**.
+
+**Tela de anotação.** Mostra a imagem `frame_118.jpg` (a 239ª de 438) sendo rotulada. As fotos são frames extraídos de um vídeo da **maquete do STC**: um cruzamento em miniatura com faixas de pedestre, um carrinho vermelho e uma van verde. As duas caixas amarelas são os objetos marcados como `carro_de_brinquedo`. No painel da esquerda, o contador "Annotations 2" confirma as duas marcações, e `boneco_de_brinquedo` aparece em *Unused classes* porque o boneco não foi marcado nesta imagem. À direita ficam os outros frames do dataset e os botões **Approve/Reject** para revisar cada anotação. A barra de ferramentas tem a caixa (*bounding box*) e os recursos de IA do Roboflow, que sugerem caixas automaticamente e foram o que deixou a rotulagem mais rápida.
+
+![Anotação de um frame no Roboflow](imagens/roboflow_1_anotacao.png)
+
+**Visão geral do dataset.** É a aba **Dataset** com as 438 imagens (100 por página) e a opção *Show Annotations* ligada, que desenha as caixas sobre as miniaturas. Os nomes em sequência (`frame_057` a `frame_077`) mostram que vêm do mesmo vídeo. Os ícones no canto de cada miniatura indicam o estado da anotação: aprovada, feita com ajuda da IA ou editada à mão. Pela galeria dá para conferir rapidamente se todas as imagens foram marcadas e se as caixas estão justas.
+
+![Dataset no Roboflow](imagens/roboflow_2_dataset.png)
+
+O zip do Roboflow tem outra estrutura: as pastas `train/`, `valid/` e `test/` (cada uma com `images/` e `labels/`) e um `data.yaml` com os nomes das classes. Ele **já vem dividido** em treino e validação, então neste projeto o passo `train_val_split.py` de C.3 foi pulado:
+
+1. Descompacte direto em `/content/custom_data` (`!unzip -q /content/data.zip -d /content/custom_data`).
+2. Crie o `data.yaml` apontando para as pastas do Roboflow, com as classes na mesma ordem do `data.yaml` exportado:
+
+```yaml
+path: /content/custom_data
+train: train/images
+val: valid/images
+nc: 2
+names: ['boneco_de_brinquedo', 'carro_de_brinquedo']
+```
+
+Neste treino, o YOLO encontrou **307 imagens de treino e 87 de validação** (veja o log em C.6). As demais ficaram na pasta `test/` do Roboflow.
 
 ---
 
@@ -242,6 +276,17 @@ create_data_yaml('/content/custom_data/classes.txt', '/content/data.yaml')
 | `epochs` | passadas completas pelo dataset | ~60 se <200 imagens; ~40 se >200 |
 | `imgsz` | resolução | 640 (480 para mais velocidade) |
 
+Qual modelo escolher:
+
+| Modelo | Velocidade | Precisão | Quando usar |
+|--------|-----------|----------|-------------|
+| `yolov8n.pt` (nano) | ⚡⚡⚡ | + | CPU fraca, Raspberry Pi |
+| `yolov8s.pt` (small) | ⚡⚡ | ++ | bom ponto de partida, **usado neste projeto** |
+| `yolov8m.pt` (medium) | ⚡ | +++ | PC com GPU |
+| `yolov8l.pt` / `yolov8x.pt` | 🐢 | ++++ | máxima precisão, exige GPU forte |
+
+> 🔄 **Mudança de modelo:** a primeira versão do STC foi treinada com `yolov8m.pt` (medium). Ele é mais preciso, mas lento sem GPU. O modelo atual usa `yolov8s.pt` (small), que roda bem mais rápido na CPU e manteve boa precisão (mAP50 ≈ 0,97 na validação).
+
 ```python
 !yolo detect train data=/content/data.yaml model=yolov8s.pt epochs=60 imgsz=640
 ```
@@ -250,7 +295,32 @@ A cada época o programa valida e informa **precisão, recall e mAP**; o mAP dev
 
 > ⚠️ Deixe o treino **terminar**: ao final um otimizador remove camadas desnecessárias do modelo.
 
-Resultados em `/content/runs/detect/train/`: `weights/best.pt` (melhor modelo), `weights/last.pt`, `results.png` (curvas de loss/precisão/recall/mAP) e `confusion_matrix.png`.
+Resultados em `/content/runs/detect/train/`: `weights/best.pt` (melhor modelo), `weights/last.pt`, `results.png` (curvas de loss/precisão/recall/mAP) e `confusion_matrix.png`. Se você treinar mais de uma vez na mesma sessão, as pastas seguintes se chamam `train-2`, `train-3`... O modelo deste repositório saiu de `train-4`.
+
+**Início do treino no Colab.** O topo da tela mostra o fim do resumo da arquitetura: as camadas finais do YOLOv8s e a camada `Detect`, já ajustada para **2 classes**. A linha *Model summary* informa **129 camadas, 11,1 milhões de parâmetros e 28,6 GFLOPs** (o custo de processar uma imagem). Em seguida, o log mostra que:
+
+- os pesos pré-treinados foram aproveitados (*Transferred 349/355 items*), então a rede não começa do zero;
+- o teste de precisão mista (**AMP**) passou, o que deixa o treino na GPU mais rápido;
+- o YOLO leu **307 imagens de treino** e **87 de validação**, sem nenhuma corrompida (*0 corrupt*);
+- o otimizador foi escolhido automaticamente (**AdamW**, lr = 0,001667);
+- os resultados vão para `/content/runs/detect/train-4`, e o treino começa a contar as **60 épocas**. A última linha mostra a época 1 em andamento, com 3,39 GB de memória da GPU e as perdas (`box_loss`, `cls_loss`, `dfl_loss`).
+
+![Log do início do treino no Colab](imagens/colab_1_inicio_treino.png)
+
+**Curvas do treino (`results.png`).** Cada gráfico mostra uma métrica ao longo das 60 épocas (eixo horizontal). Os pontos azuis são os valores de cada época e a linha laranja tracejada é a média suavizada.
+
+| Gráficos | O que medem | O que aconteceu neste treino |
+|----------|-------------|------------------------------|
+| `train/box_loss`, `cls_loss`, `dfl_loss` | erro nas imagens de treino: posição da caixa, classe e ajuste fino das bordas | caem de forma contínua, ou seja, o modelo aprendeu |
+| `val/box_loss`, `cls_loss`, `dfl_loss` | o mesmo erro nas imagens de validação, que o modelo nunca viu | pico nas primeiras épocas (instabilidade normal do início), depois caem e se estabilizam baixos. Como não voltam a subir, não houve *overfitting* |
+| `metrics/precision(B)` | das caixas que o modelo desenhou, quantas estavam certas | ≈ 0,92 no fim |
+| `metrics/recall(B)` | dos objetos reais, quantos o modelo encontrou | ≈ 0,97 no fim |
+| `metrics/mAP50(B)` | acerto geral, considerando certa a caixa que cobre pelo menos 50% do objeto | ≈ 0,96, estável desde a época 15 |
+| `metrics/mAP50-95(B)` | acerto geral, exigindo caixas cada vez mais justas (50% a 95%) | sobe até ≈ 0,86 |
+
+Em resumo: o modelo acerta quase todos os objetos da maquete, com caixas bem posicionadas. Os valores finais exatos estão na última linha de [`my_model/train/results.csv`](my_model/train/results.csv).
+
+![Curvas de treino exibidas no Colab](imagens/colab_2_resultados_treino.png)
 
 ## C.7 Testar o modelo
 
@@ -265,7 +335,21 @@ for p in glob.glob('/content/runs/detect/predict/*.jpg')[:10]:
     display(Image(filename=p, height=400))
 ```
 
-Cada objeto deve receber uma caixa. Se o resultado for ruim: revise erros de rotulagem, aumente as épocas, use um modelo maior (ex.: `yolov8l.pt`) ou adicione mais imagens. Para vídeos, use `source=/content/video.mp4`.
+Cada objeto deve receber uma caixa com o nome da classe e a **confiança** (de 0 a 1: quanto o modelo "tem certeza" da detecção). Abaixo estão três resultados do modelo deste repositório em imagens de validação, que ele não viu no treino:
+
+**Teste 1: dois carros próximos.** Visto de cima, o carrinho vermelho e a van verde estão parcialmente sobrepostos na faixa. Mesmo assim, o modelo separou os dois corretamente: `carro_de_brinquedo` com **0,93** e **0,94**.
+
+![Teste 1: dois carros detectados](imagens/colab_3_teste_1.png)
+
+**Teste 2: outro ângulo.** Os mesmos carros, agora no cruzamento e com a câmera mais inclinada, e fios e uma placa eletrônica no fundo. As duas detecções saem com **0,96**, então o ângulo diferente e os objetos ao redor não confundiram o modelo.
+
+![Teste 2: carros em outro ângulo](imagens/colab_3_teste_2.png)
+
+**Teste 3: as duas classes juntas.** Além dos dois carros (**0,95** e **0,94**), o modelo encontrou o **boneco** no alto da imagem (caixa azul, `boneco_de_brinquedo` com **0,64**). A confiança do boneco é menor porque ele é pequeno na imagem e aparece em menos fotos do dataset do que os carros. Para melhorar, adicione mais imagens com o boneco em posições e distâncias variadas. Na webcam, se o boneco sumir, baixe o `--conf` (D.3).
+
+![Teste 3: carros e boneco detectados](imagens/colab_3_teste_3.png)
+
+Se o resultado for ruim: revise erros de rotulagem, aumente as épocas, use um modelo maior (ex.: `yolov8l.pt`) ou adicione mais imagens. Para vídeos, use `source=/content/video.mp4`.
 
 ## C.8 Baixar o modelo
 
@@ -289,7 +373,7 @@ files.download('/content/my_model.zip')  # pode demorar; também dá para baixar
 
 # D. Usar o modelo no PC
 
-Este repositório já traz um modelo treinado em [`my_model/my_model.pt`](my_model/my_model.pt) (YOLOv8s, 60 épocas, classes `boneco_de_brinquedo` e `carro_de_brinquedo`) e o script [`testar_camera.py`](testar_camera.py) para testá-lo na webcam. Os resultados do treino (curvas, matriz de confusão, `results.png`) estão em [`my_model/train/`](my_model/train/).
+Este repositório já traz um modelo treinado em [`my_model/my_model.pt`](my_model/my_model.pt) (YOLOv8s, 60 épocas, 438 imagens rotuladas no Roboflow, classes `boneco_de_brinquedo` e `carro_de_brinquedo`) e o script [`testar_camera.py`](testar_camera.py) para testá-lo na webcam. Os resultados do treino (curvas, matriz de confusão, `results.png`) estão em [`my_model/train/`](my_model/train/).
 
 ### D.1 Clonar o repositório
 
@@ -340,7 +424,7 @@ Opções úteis:
 
 Exemplo: `python testar_camera.py --camera 1 --conf 0.4`
 
-> ⚡ **Desempenho:** a detecção roda numa thread separada, então o vídeo fica fluido mesmo que as caixas atualizem devagar. Sem GPU NVIDIA, o YOLOv8l faz só ~3 a 5 detecções por segundo num processador comum. Para tempo real na CPU, treine com `yolov8s.pt` ou `yolov8n.pt` (C.6), que são de 3 a 6 vezes mais rápidos. Exportar para ONNX/OpenVINO quase não ajudou nos nossos testes.
+> ⚡ **Desempenho:** a detecção roda numa thread separada, então o vídeo fica fluido mesmo que as caixas atualizem devagar. Por isso o modelo atual usa `yolov8s.pt`: os modelos maiores (`m`, `l`) ficam lentos sem GPU NVIDIA. Se ainda estiver lento na sua máquina, use `--imgsz 320` ou treine com `yolov8n.pt` (C.6). Exportar para ONNX/OpenVINO quase não ajudou nos nossos testes.
 
 ### D.4 Testar em fotos ou vídeos
 
