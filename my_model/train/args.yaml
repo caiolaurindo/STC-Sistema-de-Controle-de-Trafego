@@ -1,6 +1,6 @@
 task: detect
 mode: train
-model: yolov8l.pt
+model: yolov8s.pt
 data: /content/data.yaml
 epochs: 60
 time: null
@@ -13,7 +13,7 @@ cache: false
 device: ""
 workers: 8
 project: null
-name: train
+name: train-4
 exist_ok: false
 pretrained: true
 cls_remap: true
@@ -47,6 +47,7 @@ dnn: false
 plots: true
 nms: null
 tile: false
+tile_overlap: 0.2
 source: null
 vid_stride: 1
 stream_buffer: false
@@ -112,4 +113,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: tracktrack.yaml
-save_dir: /content/runs/detect/train
+save_dir: /content/runs/detect/train-4

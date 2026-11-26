@@ -289,7 +289,7 @@ files.download('/content/my_model.zip')  # pode demorar; também dá para baixar
 
 # D. Usar o modelo no PC
 
-Este repositório já traz um modelo treinado em [`my_model/my_model.pt`](my_model/my_model.pt) (YOLOv8l, 60 épocas, classes `carro` e `pessoa`) e o script [`testar_camera.py`](testar_camera.py) para testá-lo na webcam. Os resultados do treino (curvas, matriz de confusão, `results.png`) estão em [`my_model/train/`](my_model/train/).
+Este repositório já traz um modelo treinado em [`my_model/my_model.pt`](my_model/my_model.pt) (YOLOv8s, 60 épocas, classes `boneco_de_brinquedo` e `carro_de_brinquedo`) e o script [`testar_camera.py`](testar_camera.py) para testá-lo na webcam. Os resultados do treino (curvas, matriz de confusão, `results.png`) estão em [`my_model/train/`](my_model/train/).
 
 ### D.1 Clonar o repositório
 
@@ -374,7 +374,7 @@ O modelo pode ser exportado para ONNX ou TFLite (`yolo export model=my_model/my_
 | Arquivo | O que é |
 |---------|---------|
 | [`Train_YOLOv8_STC.ipynb`](Train_YOLOv8_STC.ipynb) | notebook do Colab com a Etapa C |
-| [`my_model/my_model.pt`](my_model/my_model.pt) | modelo treinado (classes `carro` e `pessoa`) |
+| [`my_model/my_model.pt`](my_model/my_model.pt) | modelo treinado (classes `boneco_de_brinquedo` e `carro_de_brinquedo`) |
 | [`my_model/train/`](my_model/train/) | métricas e gráficos do treino |
 | [`testar_camera.py`](testar_camera.py) | testa o modelo na webcam (D.3) |
 | [`requirements.txt`](requirements.txt) | dependências para rodar o modelo |
