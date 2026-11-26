@@ -2,3 +2,4 @@ my_model/*.onnx
 my_model/train/weights/
 capturas/
 __pycache__/
+.pytest_cache/
